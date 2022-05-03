@@ -9,3 +9,4 @@ consumer_secret = '5y0hvVhkhuFNNzzWxVSS8LvSUFtiHEF3KNKFfuzv1H6lHXqb46'
 access_key= '1342350661-XZ68gf8AavfHdaZEorlTrMnu2YiXqxZXsfIwzD9'
 access_secret = 'srzSUmnd2IGLG2P2cFUvte2f6sBUqCNEOMlyJUvmhqC8D'
 uri = "gs://pd-py-working-bucket/ikeapoc/ikea_twitter.csv"
+test = 'test'
