@@ -1,0 +1,11 @@
+project_id = 'scrambled'
+bucket = 'pd-py-working-bucket'
+localpath = '/tmp/'
+blobpath = 'ikeapoc/ikea_twitter.csv'
+dataset_id = 'test_ds'
+table = 'twitter_poc'
+consumer_key = 'scrambled'
+consumer_secret = 'scrambled'
+access_key= 'scrambled-scrambled'
+access_secret = 'scrambled'
+uri = "gs://pd-py-working-bucket/ikeapoc/ikea_twitter.csv"
