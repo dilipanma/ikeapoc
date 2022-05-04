@@ -1,5 +1,5 @@
 # ikeapoc
-This repo holds the code to extract the twitter dataset and load into bigquery for performing some meaningful analytics
+This repo holds the code to extract the twitter dataset and load into bigquery for performing some meaningful analytics. Please refer the Architecture to comprehend the end to end data flow.
 
 
 
