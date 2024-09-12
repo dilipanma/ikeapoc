@@ -1,0 +1,114 @@
+name: "Cloud functions deployment with GitHub Actions"
+on: 
+  pull_request: 
+    branches: 
+      - sb
+      - dev
+      - stage
+      - main 
+  push: 
+    branches: 
+      - sb
+      - dev
+      - stage
+      - main
+            
+jobs:
+  
+  # Set variables used by other jobs.
+  init:
+    runs-on: ubuntu-latest
+    outputs:
+      gcloud_project: ${{ steps.set_vars_step.outputs.gcloud_project }}
+      serviceaccount: ${{ steps.set_vars_step.outputs.serviceaccount }}
+      project_number: ${{ steps.set_vars_step.outputs.project_number }}
+      env: ${{ steps.set_vars_step.outputs.env }}
+      vpc_connector: ${{ steps.set_vars_step.outputs.vpc_connector }}
+      env_unit_tests: ${{steps.set_vars_unit_tests_step.outputs.env_unit_tests}}    
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+            
+      # Set variables.
+      - name: "Set variables"
+        id: set_vars_step
+        run: |
+
+          # Set details for project: sb
+          if [[ "${{github.base_ref}}" == "sb" || "${{github.ref}}" == "refs/heads/sb" ]]; then
+            echo "::set-output name=gcloud_project::scrambles"
+            echo "::set-output name=serviceaccount::sa-gitactiondeployment@scrambled.iam.gserviceaccount.com"
+            echo "::set-output name=project_number::scrambled"
+            echo "::set-output name=env::sb"      
+          fi
+
+          
+      - name: "Set variables for running unit tests"
+        id: set_vars_unit_tests_step
+        run: |         
+          
+          # Set details for unit testing.
+          if [[ "${{steps.set_vars_step.outputs.env}}" != "prod" ]]; then
+            echo "::set-output name=gcloud_project_unit_tests::${{steps.set_vars_step.outputs.gcloud_project}}"
+            echo "::set-output name=project_number_unit_tests::${{steps.set_vars_step.outputs.project_number}}"
+            echo "::set-output name=env_unit_tests::${{steps.set_vars_step.outputs.env}}"; else
+            echo "::set-output name=gcloud_project_unit_tests::ingka-pd-pydm-stage"
+            echo "::set-output name=project_number_unit_tests::1085685003996"
+            echo "::set-output name=env_unit_tests::stage"
+          fi  
+      - name: "Display variables"
+        run: |
+          echo "gcloud_project=${{steps.set_vars_step.outputs.gcloud_project}}"  
+          echo "serviceaccount=${{steps.set_vars_step.outputs.serviceaccount}}"
+          echo "project_number=${{steps.set_vars_step.outputs.project_number}}"
+          echo "env=${{steps.set_vars_step.outputs.env}}"
+          echo "cloud_run_framework_base_url=${{steps.set_vars_step.outputs.cloud_run_framework_base_url}}"
+          echo "vpc_connector=${{steps.set_vars_step.outputs.vpc_connector}}"    
+          echo "gcloud_project_unit_tests=${{steps.set_vars_unit_tests_step.outputs.gcloud_project_unit_tests}}"    
+          echo "project_number_unit_tests=${{steps.set_vars_unit_tests_step.outputs.project_number_unit_tests}}"    
+          echo "env_unit_tests=${{steps.set_vars_unit_tests_step.outputs.env_unit_tests}}"    
+  
+        # Authenticate to be able to run unit tests in the GCP project.
+      - id: "auth"
+        name: "Set credentials"
+        uses: google-github-actions/auth@v0
+        with:
+          workload_identity_provider: 'projects/${{needs.init.outputs.project_number_unit_tests}}/locations/global/workloadIdentityPools/pdpy-dh-wi-pool/providers/pdpy-dh-wi-provider'
+          service_account: 'sa-gitactiondeployment@${{needs.init.outputs.gcloud_project_unit_tests}}.iam.gserviceaccount.com' 
+
+        
+  # Deploy cloud functions - one job per cloud function.
+  deploy_ikeatwitterpoc:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    needs: [init, testing]
+    steps:
+      - name: "Checkout source code"
+        uses: actions/checkout@v2
+      - id: "auth"
+        name: "Set credentials"
+        uses: google-github-actions/auth@v0
+        with:
+          workload_identity_provider: 'projects/${{needs.init.outputs.project_number}}/locations/global/workloadIdentityPools/pdpy-dh-wi-pool/providers/pdpy-dh-wi-provider'
+          service_account: '${{needs.init.outputs.serviceaccount}}' 
+      - name: "Deploy ikeatwitterpoc"
+        id: 'deploy-ikeatwitterpoc'
+        uses: 'google-github-actions/deploy-cloud-functions@v0.8.0'
+        with:
+          name: ikeatwitterpoc
+          region: europe-west1
+          source_dir: cloud_functions/ikeatwitterpoc
+          entry_point: main
+          runtime: python37
+          timeout: 540
+          memory_mb: 8192
+          vpc_connector: '${{needs.init.outputs.vpc_connector}}'
+          labels: interface=pydh,interfacetype=datahub,deployed_with=git_action
+          env_vars: env=${{needs.init.outputs.env}}
+          ingress_settings: ALLOW_INTERNAL_ONLY
+          service_account_email: 'sa-pd-py-dh-gcf@${{needs.init.outputs.gcloud_project}}.iam.gserviceaccount.com'
+
